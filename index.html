@@ -883,26 +883,28 @@ footer a:hover{color:#fff}
     </div>
     <form class="enq rv" id="enq" novalidate>
       <h3>Request a quote</h3>
-      <p class="sub">Fill this in and send it to us on WhatsApp in one tap.</p>
+      <p class="sub">Fill this in and we'll get back to you, usually the same day.</p>
       <div class="fgrid">
         <div class="f"><label for="fName">Name *</label><input id="fName" autocomplete="name" required></div>
         <div class="f"><label for="fPhone">Phone *</label><input id="fPhone" type="tel" autocomplete="tel" required></div>
         <div class="f"><label for="fType">I am a</label><select id="fType"><option>Dealer</option><option>Carpenter / Interior</option><option>Contractor / Builder</option><option>Architect</option><option>Home owner</option></select></div>
-        <div class="f"><label for="fCity">City / Town</label><input id="fCity"></div>
+        <div class="f"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email"></div>
+        <div class="f"><label for="fCity">City / Country</label><input id="fCity" placeholder="e.g. Mangaluru or Dubai, UAE"></div>
         <div class="f"><label for="fProd">Product</label><select id="fProd"></select></div>
         <div class="f"><label for="fThk">Thickness</label><select id="fThk"><option>4 mm</option><option>6 mm</option><option>9 mm</option><option>12 mm</option><option>16 mm</option><option selected>18 mm</option><option>25 mm</option><option>Mixed / not sure</option></select></div>
         <div class="f full"><label for="fQty">Quantity (sheets, 8 × 4 ft)</label><input id="fQty" inputmode="numeric" placeholder="e.g. 50"></div>
         <div class="f full"><label for="fMsg">Anything else?</label><textarea id="fMsg" placeholder="Delivery location, timeline, face veneer preference…"></textarea></div>
       </div>
+      <input type="text" id="fHoney" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
       <p class="err" id="fErr">Please add your name and phone number.</p>
       <div class="form-actions">
-        <button class="btn btn-primary wa" type="submit">
-          <svg viewBox="0 0 32 32" fill="currentColor"><path d="M16 3a13 13 0 0 0-11.2 19.6L3 29l6.6-1.7A13 13 0 1 0 16 3Zm0 23.6a10.6 10.6 0 0 1-5.4-1.5l-.4-.2-3.9 1 1-3.8-.2-.4A10.6 10.6 0 1 1 16 26.6Zm5.8-7.9c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1a8.7 8.7 0 0 1-4.3-3.8c-.3-.6.3-.5.9-1.6.1-.2 0-.4 0-.5l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6a1.2 1.2 0 0 0-.9.4 3.7 3.7 0 0 0-1.1 2.7 6.4 6.4 0 0 0 1.4 3.4 14.6 14.6 0 0 0 5.6 4.9c2.1.9 2.9 1 3.9.8a3.3 3.3 0 0 0 2.2-1.5 2.7 2.7 0 0 0 .2-1.5c-.1-.2-.3-.3-.7-.5Z"/></svg>
-          Send on WhatsApp</button>
-        <span style="font-size:13px;color:var(--muted)">or call +91 88800 88883</span>
+        <button class="btn btn-primary" type="submit" id="fSend">Send enquiry</button>
+        <a class="btn btn-ghost wa" href="#" id="fWaAlt">Send on WhatsApp instead</a>
       </div>
+      <p style="font-size:13px;color:var(--muted);margin-top:10px">Or call +91 88800 88883</p>
       <div class="form-out" id="fOut">
-        <strong>Your message is ready.</strong> If WhatsApp didn't open, copy this and send it to <b>+91 88800 88883</b> or <b>plypalply@gmail.com</b>.
+        <strong id="fOutTitle">Thank you, we've received your enquiry.</strong>
+        <p id="fOutMsg" style="margin:6px 0 12px">Our team will contact you shortly. For a faster reply, you can also send it on WhatsApp.</p>
         <pre id="fText"></pre>
         <div class="row">
           <a class="btn btn-primary wa" id="fWa" href="#" target="_blank" rel="noopener">Open WhatsApp</a>
@@ -1472,28 +1474,61 @@ footer a:hover{color:#fff}
   $("#whyList").innerHTML = why.map(w=>`<li class="rv"><div class="ic">${ico(w.i)}</div><div><h4>${w.t}</h4><p>${w.d}</p></div></li>`).join("");
 
   /* ---------- Enquiry form ---------- */
-  $("#enq").addEventListener("submit", e=>{
-    e.preventDefault();
+  const FORM_ENDPOINT = "https://formsubmit.co/ajax/plypalply@gmail.com";
+  const buildEnq = ()=>{
     const v = id => $(id).value.trim();
-    if(!v("#fName") || !v("#fPhone")){ $("#fErr").style.display="block"; return; }
+    if(!v("#fName") || !v("#fPhone")){ $("#fErr").style.display="block"; return null; }
     $("#fErr").style.display="none";
+    const d = {name:v("#fName"), phone:v("#fPhone"), email:v("#fEmail"), type:v("#fType"), city:v("#fCity"), product:v("#fProd"), thickness:v("#fThk"), qty:v("#fQty"), message:v("#fMsg")};
     const lines = [
-      "Hello PlyPal, I'd like a quote.",
-      "",
-      "Name: "+v("#fName"),
-      "Phone: "+v("#fPhone"),
-      "I am a: "+v("#fType"),
-      v("#fCity") ? "Location: "+v("#fCity") : null,
-      "Product: "+v("#fProd"),
-      "Thickness: "+v("#fThk"),
-      v("#fQty") ? "Quantity: "+v("#fQty")+" sheets (8 × 4 ft)" : null,
-      v("#fMsg") ? "Notes: "+v("#fMsg") : null
+      "Hello PlyPal, I'd like a quote.", "",
+      "Name: "+d.name, "Phone: "+d.phone,
+      d.email ? "Email: "+d.email : null,
+      "I am a: "+d.type,
+      d.city ? "Location: "+d.city : null,
+      "Product: "+d.product, "Thickness: "+d.thickness,
+      d.qty ? "Quantity: "+d.qty+" sheets (8 × 4 ft)" : null,
+      d.message ? "Notes: "+d.message : null
     ].filter(x=>x!==null).join("\n");
-    const url = "https://wa.me/"+WA+"?text="+encodeURIComponent(lines);
-    $("#fText").textContent = lines;
-    $("#fWa").href = url;
+    return {d, lines, wa:"https://wa.me/"+WA+"?text="+encodeURIComponent(lines)};
+  };
+  const showOut = (enq, ok)=>{
+    $("#fText").textContent = enq.lines;
+    $("#fWa").href = enq.wa;
+    $("#fOutTitle").textContent = ok ? "Thank you, we've received your enquiry." : "Your message is ready.";
+    $("#fOutMsg").textContent = ok ? "Our team will contact you shortly. For a faster reply, you can also send it on WhatsApp."
+      : "We couldn't send it from the website just now. Please send it on WhatsApp to +91 88800 88883 or email plypalply@gmail.com.";
     $("#fOut").classList.add("show");
-    try{ const w = window.open(url, "_blank", "noopener"); }catch(_){}
+  };
+  $("#enq").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const enq = buildEnq(); if(!enq) return;
+    if($("#fHoney").value){ showOut(enq, true); return; }
+    const btn = $("#fSend"); btn.disabled = true; btn.textContent = "Sending…";
+    let ok = false;
+    try{
+      const r = await fetch(FORM_ENDPOINT, {method:"POST", headers:{"Content-Type":"application/json","Accept":"application/json"},
+        body: JSON.stringify({
+          _subject: "New website enquiry: "+enq.d.name+" ("+enq.d.product+")",
+          _template: "table", _captcha: "false",
+          ...(enq.d.email ? {_replyto: enq.d.email} : {}),
+          Name: enq.d.name, Phone: enq.d.phone, Email: enq.d.email || "-", "I am a": enq.d.type,
+          "City / Country": enq.d.city || "-", Product: enq.d.product, Thickness: enq.d.thickness,
+          Quantity: enq.d.qty || "-", Message: enq.d.message || "-", Page: location.href
+        })});
+      const j = await r.json().catch(()=>({}));
+      ok = r.ok && String(j.success) !== "false";
+    }catch(_){ ok = false; }
+    btn.disabled = false; btn.textContent = "Send enquiry";
+    showOut(enq, ok);
+    if(ok){ $("#enq").querySelectorAll("input:not([type=hidden]),textarea").forEach(el=>{ if(el.id!=="fHoney") el.value=""; }); }
+  });
+  $("#fWaAlt").addEventListener("click", e=>{
+    e.preventDefault();
+    const enq = buildEnq(); if(!enq) return;
+    showOut(enq, false);
+    $("#fOutTitle").textContent = "Your message is ready."; $("#fOutMsg").textContent = "If WhatsApp didn't open, tap the button below or copy the message.";
+    try{ window.open(enq.wa, "_blank", "noopener"); }catch(_){}
   });
   $("#fCopy").addEventListener("click", async ()=>{
     try{ await navigator.clipboard.writeText($("#fText").textContent); $("#fCopy").textContent="Copied ✓"; }
